@@ -1,0 +1,6 @@
+
+BATCH_SIZE = 3
+EPOCH = 200
+MODEL_SEED = 980118
+TRAIN_RATIO = 0.9  # 훈련 세트의 비율
+LearningRate = 0.0001
