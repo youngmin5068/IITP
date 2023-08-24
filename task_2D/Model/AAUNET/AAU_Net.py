@@ -1,6 +1,9 @@
 import torch.nn as nn
 import torch
 
+import sys
+sys.path.append("/workspace/IITP/task_2D/train")
+
 class AAU_channel(nn.Module):
     def __init__(self,in_channel,out_channel):
         super(AAU_channel,self).__init__()

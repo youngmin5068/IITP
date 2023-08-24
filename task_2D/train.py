@@ -30,7 +30,7 @@ dataset_path = "/workspace/breast_mri/2d_train"
 def train_net(net,                       
               device,     
               epochs=100,
-              batch_size=32,
+              batch_size=16,
               lr=0.001,
               save_cp=True
               ):
@@ -163,11 +163,11 @@ if __name__ == '__main__':
     logging.info(f'Using device {device}')
 
 
-    net = AAU_Net()
+    net = AAU_Net(1,1)
 
 
     if torch.cuda.device_count() > 1:
-        net = nn.DataParallel(net,device_ids=[0,1,2]) 
+        net = nn.DataParallel(net,device_ids=[0,1,2,3]) 
     net.to(device=device)
 
     train_net(net=net,device=device)

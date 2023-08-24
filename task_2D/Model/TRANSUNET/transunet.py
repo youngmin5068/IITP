@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 from torchvision.models import resnet50
-from TRANSUNET.vit import ViT
-from TRANSUNET.CBAM import CBAM
+from Model.TRANSUNET.vit import ViT
+from Model.TRANSUNET.CBAM import CBAM
 
 
 class EncoderBottleneck(nn.Module):
