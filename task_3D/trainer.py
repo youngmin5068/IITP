@@ -1,13 +1,8 @@
 import torch
 import torch.nn as nn
 import torchio as tio
-import logging
-import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.utils.data import random_split
-from dataset_3d import BreastDataset
-from losses import DiceLoss
-from util import set_seed, normalize_minmax
+from util import normalize_minmax
 from config import *
 
 def train(train_dataset,net,optimizer,loss_funcs,device,epoch,scheduler=None):
