@@ -8,7 +8,7 @@ from trainer import train
 from validation import validation
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
-from dataset_3d import BreastDataset,Dataset_load
+from dataset import Dataset_load
 from losses import DiceLoss
 from util import set_seed
 from config import *
@@ -25,7 +25,7 @@ def main(net,device):
 
     image_paths = "/workspace/breast_mri/3d_train/input/"
     label_paths = "/workspace/breast_mri/3d_train/breast/"
-    dir_checkpoint = "/workspace/breast_mri/dir_checkpoint_Breast_3D_Model"
+    dir_checkpoint = "/workspace/IITP/task_3D/dir_checkpoint"
     
     transforms = tio.Compose([
         tio.CropOrPad(target_shape=(32, 256, 256)),
