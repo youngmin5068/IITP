@@ -1,6 +1,9 @@
-
-BATCH_SIZE = 3
-EPOCH = 200
-MODEL_SEED = 980118
+BATCH_SIZE = 2 # dataloader batch size 
+NUM_SAMPLES = 4 # RandCropByPosNegLabeld in training
+NUM_SLIDING = 4 # slidng batch size in validation 
+EPOCH = 1000
+MODEL_SEED = 7777777
 TRAIN_RATIO = 0.9  # 훈련 세트의 비율
-LearningRate = 0.0001
+IMAGE_SIZE = (96,96)
+PIX_DIM = (1.0,1.0)
+LearningRate = 0.001
