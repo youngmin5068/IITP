@@ -31,7 +31,7 @@ train_transforms = Compose(
             clip=True,
         ),
         CropForegroundd(keys=["image", "label"], source_key="image"),
-        Orientationd(keys=["image", "label"], axcodes="RAS"),
+        Orientationd(keys=["image", "label"], axcodes=AXCODES),
         Spacingd(
             keys=["image", "label"],
             pixdim=PIX_DIM,
@@ -68,11 +68,11 @@ train_transforms = Compose(
             prob=0.10,
             max_k=3,
         ),
-        # RandShiftIntensityd(
-        #     keys=["image"],
-        #     offsets=0.10,
-        #     prob=0.50,
-        # ),
+        RandShiftIntensityd(
+            keys=["image"],
+            offsets=0.10,
+            prob=0.50,
+        ),
     ]
 )
 
@@ -82,7 +82,7 @@ val_transforms = Compose(
         #ResizeWithPadOrCropd(keys=["image","label"],spatial_size=[192,512,512],method="symmetric", mode="constant"),
         ScaleIntensityRanged(keys=["image"], a_min=-29722.0, a_max=32767.0, b_min=0.0, b_max=1.0, clip=True),
         CropForegroundd(keys=["image", "label"], source_key="image"),
-        Orientationd(keys=["image", "label"], axcodes="RAS"),
+        Orientationd(keys=["image", "label"], axcodes=AXCODES),
         Spacingd(
             keys=["image", "label"],
             pixdim=PIX_DIM,
@@ -91,3 +91,5 @@ val_transforms = Compose(
         EnsureTyped(keys=["image", "label"], device=device, track_meta=True),
     ]
 )
+
+
