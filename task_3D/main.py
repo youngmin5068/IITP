@@ -53,7 +53,7 @@ def main(net,device):
         Device:          {device}
     ''')
 
-    optimizer = optim.AdamW(net.parameters(),betas=(0.9,0.999),lr=LearningRate,weight_decay=5e-4) # weight_decay : prevent overfitting
+    optimizer = optim.AdamW(net.parameters(),betas=(0.9,0.999),lr=LearningRate,weight_decay=1e-4) # weight_decay : prevent overfitting
     #scheduler = optim.lr_scheduler.MultiStepLR(optimizer,milestones=[100,150],gamma=0.1)
     scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,T_0=100,T_mult=1,eta_min=0.000001,last_epoch=-1)
     
