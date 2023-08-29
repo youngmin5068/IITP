@@ -8,12 +8,12 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 import torchio as tio
 from custom_transforms import *
-from dataset import breast_Dataset
+from dataset import breast_Dataset,tumor_Dataset
 from Model.AAUNET.AAU_Net import AAU_Net
 from Model.TRANSUNET.transunet import TransUNet
 from loss import *
 from metric import *
-
+from monai.networks.nets import SwinUNETR
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -25,8 +25,6 @@ def set_seed(seed):
 
 
 
-dataset_path = "/workspace/breast_mri/2d_train"
-
 def train_net(net,                       
               device,     
               epochs=100,
@@ -34,8 +32,10 @@ def train_net(net,
               lr=0.001,
               save_cp=True
               ):
-    
-    dataset = breast_Dataset(dataset_path)
+    dir_checkpoint = '/workspace/IITP/task_2D/dir_checkpoint'
+    dataset_path = "/workspace/breast_mri/2d_train/only_tumor"
+
+    dataset = tumor_Dataset(dataset_path)
     train_ratio = 0.95
     train_length = int(train_ratio * len(dataset))
     test_length = len(dataset) - train_length
@@ -45,10 +45,7 @@ def train_net(net,
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,num_workers=12,pin_memory=True)
     val_loader = DataLoader(test_dataset, batch_size=batch_size,shuffle=False,num_workers=12,pin_memory=True)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,num_workers=12,pin_memory=True)
-    val_loader = DataLoader(test_dataset, batch_size=batch_size,shuffle=False,num_workers=12,pin_memory=True)
-
-    dir_checkpoint = '/IITP/task_2D/dir_checkpoint'
+    
 
     logging.info(f'''Starting training:
         Epochs:          {epochs}
@@ -61,7 +58,7 @@ def train_net(net,
     ''')    
 
     optimizer = optim.AdamW(net.parameters(),betas=(0.9,0.999),lr=lr,weight_decay=5e-4) # weight_decay : prevent overfitting
-    scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,T_0=10,T_mult=1,eta_min=0.000001,last_epoch=-1)
+    scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,T_0=10,T_mult=1,eta_min=0.00001,last_epoch=-1)
     #scheduler = optim.lr_scheduler.MultiStepLR(optimizer,milestones=[70],gamma=0.1)
     l1 = DiceLoss()
     l2 = nn.BCEWithLogitsLoss()
@@ -71,7 +68,7 @@ def train_net(net,
     best_precision = 0.0
     best_recall = 0.0
 
-
+    
     for epoch in range(epochs):
 
         net.train()
@@ -147,7 +144,7 @@ def train_net(net,
                     logging.info("Created checkpoint directory")
                 except OSError:
                     pass
-                torch.save(net.state_dict(), dir_checkpoint + f'/AAU_Net.pth')
+                torch.save(net.state_dict(), dir_checkpoint + f'/AAU_Net_tumor.pth')
                 
                 logging.info(f'Checkpoint {epoch + 1} saved !')
 
@@ -163,7 +160,7 @@ if __name__ == '__main__':
     logging.info(f'Using device {device}')
 
 
-    net = AAU_Net(1,1)
+    net = SwinUNETR(img_size=(512,512),spatial_dims=2,in_channels=1,out_channels=1,depths=(2,2,2,2))
 
 
     if torch.cuda.device_count() > 1:

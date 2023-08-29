@@ -12,9 +12,9 @@ import pydicom as dcm
 from pydicom.pixel_data_handlers.util import apply_voi_lut
 
 class breast_Dataset(Dataset):
-    def __init__(self,path):
+    def __init__(self,path, train=True):
         self.path = path
-
+        self.train = train
         self.train_path_list = []
         self.train_list = []
 
@@ -38,13 +38,14 @@ class breast_Dataset(Dataset):
         return len(self.label_path_list)
         
     def __getitem__(self,idx):
-
-        self.transform = transforms.Compose([transforms.ToTensor(),
-                                            transforms.Resize((512,512)),
-                                            customRandomRotate(degrees=180,SEED=idx),
-                                            customRandomResizedCrop(SEED=idx,size=(384,384))
-                                             ])
-        
+        if self.train:
+            self.transform = transforms.Compose([transforms.ToTensor(),
+                                                transforms.Resize((512,512)),
+                                                customRandomRotate(degrees=180,SEED=idx),
+                                                #customRandomResizedCrop(SEED=idx,size=(512,512))
+                                                ])
+            
+            
         image_path = self.train_path_list[idx]
 
         slice = dcm.read_file(image_path)
@@ -83,25 +84,25 @@ class tumor_Dataset(Dataset):
         self.target_path_list = []
         self.target_list = []
 
-        self.train_path = path + "/input_dcm"
-        self.label_path = path + "/breast"
+        self.train_path = path + "/input"
+        #self.label_path = path + "/breast"
 
-        self.target_path = path + "/mask"
+        self.target_path = path + "/tumor"
         
         for file in os.listdir(self.train_path):
             self.train_path_list.append(os.path.join(self.train_path,file))
         self.train_path_list.sort()
                 
-        for file in os.listdir(self.label_path):
-            self.label_path_list.append(os.path.join(self.label_path,file))           
-        self.label_path_list.sort()
+        # for file in os.listdir(self.label_path):
+        #     self.label_path_list.append(os.path.join(self.label_path,file))           
+        # self.label_path_list.sort()
 
         for file in os.listdir(self.target_path):
             self.target_path_list.append(os.path.join(self.target_path,file))           
         self.target_path_list.sort()
 
     def __len__(self):
-        return len(self.label_path_list)
+        return len(self.target_path_list)
         
     def __getitem__(self,idx):
 
@@ -113,22 +114,23 @@ class tumor_Dataset(Dataset):
                                             customRandomRotate(degrees=180,SEED=idx),
                                             #customRandomResizedCrop(SEED=idx,size=(256,256))
                                              ])
+        normalized = transforms.Normalize(mean=mean,std=std)
         
         image_path = self.train_path_list[idx]
 
         slice = dcm.read_file(image_path)
         image = slice.pixel_array
         image = apply_voi_lut(image, slice)
-
+        epsilon = 1e-10
         min_val = np.min(image)
         max_val = np.max(image)
-        image = (image - min_val) / (max_val - min_val)
+        image = (image - min_val) / (max_val - min_val+epsilon)
         image = Image.fromarray(image)
 
-        label_path = self.label_path_list[idx]
-        label = np.array(Image.open(label_path).convert("L"))
+        # label_path = self.label_path_list[idx]
+        # label = np.array(Image.open(label_path).convert("L"))
 
-        label = Image.fromarray(label)
+        # label = Image.fromarray(label)
 
         target_path = self.target_path_list[idx]
         target = np.array(Image.open(target_path).convert("L"))
@@ -136,15 +138,16 @@ class tumor_Dataset(Dataset):
         target = Image.fromarray(target)
 
         input_image = self.transform(image)
-        label_image = self.transform(label)
+        #input_image = normalized(input_image)
+        #label_image = self.transform(label)
         target_image = self.transform(target)
 
-        thresh = np.zeros_like(label_image)
-        thresh[label_image > 0.5] = 1
+        # thresh = np.zeros_like(label_image)
+        # thresh[label_image > 0.5] = 1
 
         target_thresh = np.zeros_like(target_image)
         target_thresh[target_image > 0.5] =1
 
-        input_img = input_image*thresh
+        #input_img = input_image*thresh
 
         return input_image, target_thresh
