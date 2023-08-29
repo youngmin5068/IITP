@@ -4,37 +4,37 @@ import torchio as tio
 from torch.utils.data import DataLoader
 from util import normalize_minmax
 from config import *
+from losses import BCEDiceLoss
+from monai.losses import DiceCELoss
+from monai.transforms import AsDiscrete
+from monai.data import ThreadDataLoader
+from monai.data.utils import pad_list_data_collate 
 
-def train(train_dataset,net,optimizer,loss_funcs,device,epoch,scheduler=None):
-
-    #patch_dataset = tio.SubjectsDataset(train_dataset,transform=transform)
-    # patch_size = (64,64,64)
-    # sampler = tio.data.UniformSampler(patch_size=patch_size)
-
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE,shuffle=True,num_workers=12,pin_memory=True)
+def train(train_dataset,net,optimizer,device,epoch,scheduler=None):
+    net.train()
+    post_label = AsDiscrete(threshold=0.5) #threshold
+    train_loader = ThreadDataLoader(train_dataset, num_workers=0, batch_size=BATCH_SIZE, shuffle=True,collate_fn=pad_list_data_collate)
+    criterion = DiceCELoss(sigmoid=True)
+    scaler = torch.cuda.amp.GradScaler()
 
     i=0
     for batch in train_loader:
 
-        imgs = normalize_minmax(batch["MRI"][tio.DATA].to(device=device,dtype=torch.float32))
-        true_masks = batch["LABEL"][tio.DATA].to(device=device,dtype=torch.float32)
-        true_thresh = torch.zeros_like(true_masks)
-        true_thresh[true_masks>0.5] = 1.0
+        imgs = batch['image'].to(device=device)
+        true_masks = batch['label'].to(device=device)
+        masks = post_label(true_masks) #TRUE Target
 
-        for param in net.parameters():
-            param.grad = None
+        with torch.cuda.amp.autocast():
+            preds = net(imgs)
+            loss = criterion(preds, masks)
 
-        masks_preds = net(imgs)
-
-        criterion = loss_funcs["BCEDICE_loss"]
-        loss = criterion(masks_preds,true_thresh)
-
-
-        loss.backward()
+        scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+        scaler.step(optimizer)
+        scaler.update()
+        optimizer.zero_grad()
 
         nn.utils.clip_grad_value_(net.parameters(),0.1)
-
-        optimizer.step()
 
         if BATCH_SIZE*i % 20== 0 :
             print('epoch : {}, index : {}/{}, loss (batch) : {:.4f}'.format(

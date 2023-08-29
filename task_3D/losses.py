@@ -167,7 +167,7 @@ class BCEDiceLoss(nn.Module):
 
 
     def forward(self, input, target):
-        return self.alpha * self.bce(input, target) + self.beta * (self.dice(input, target))
+        return self.alpha * self.bce(input, target) + self.beta * (self.dice((input), target))
 
 
 class WeightedCrossEntropyLoss(nn.Module):
