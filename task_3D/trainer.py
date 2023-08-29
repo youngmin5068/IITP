@@ -13,8 +13,8 @@ from monai.data.utils import pad_list_data_collate
 def train(train_dataset,net,optimizer,device,epoch,scheduler=None):
     net.train()
     post_label = AsDiscrete(threshold=0.5) #threshold
-    train_loader = ThreadDataLoader(train_dataset, num_workers=0, batch_size=BATCH_SIZE, shuffle=True,collate_fn=pad_list_data_collate)
-    criterion = DiceCELoss(sigmoid=True)
+    train_loader = ThreadDataLoader(train_dataset, num_workers=0, batch_size=BATCH_SIZE, shuffle=True)
+    criterion = BCEDiceLoss(alpha=1.0,beta=1.0)
     scaler = torch.cuda.amp.GradScaler()
 
     i=0
