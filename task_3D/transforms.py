@@ -51,21 +51,21 @@ train_transforms = Compose(
         RandFlipd(
             keys=["image", "label"],
             spatial_axis=[0],
-            prob=0.10,
+            prob=0.20,
         ),
         RandFlipd(
             keys=["image", "label"],
             spatial_axis=[1],
-            prob=0.10,
+            prob=0.20,
         ),
         RandFlipd(
             keys=["image", "label"],
             spatial_axis=[2],
-            prob=0.10,
+            prob=0.20,
         ),
         RandRotate90d(
             keys=["image", "label"],
-            prob=0.10,
+            prob=0.20,
             max_k=3,
         ),
         RandShiftIntensityd(
