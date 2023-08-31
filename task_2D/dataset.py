@@ -11,6 +11,69 @@ from custom_transforms import *
 import pydicom as dcm
 from pydicom.pixel_data_handlers.util import apply_voi_lut
 
+class lung_Dataset(Dataset):
+    def __init__(self,path):
+        self.path = path
+
+        self.train_path_list = []
+        self.train_list = []
+
+        self.label_path_list = []
+        self.label_list = []
+
+        self.train_path = path + "/input_dcm"
+        self.label_path = path + "/target"
+
+        
+        for file in os.listdir(self.train_path):
+            self.train_path_list.append(os.path.join(self.train_path,file))
+        self.train_path_list.sort()
+                
+        for file in os.listdir(self.label_path):
+            self.label_path_list.append(os.path.join(self.label_path,file))           
+        self.label_path_list.sort()
+
+
+    def __len__(self):
+        return len(self.label_path_list)
+        
+    def __getitem__(self,idx):
+
+
+        self.transform = transforms.Compose([transforms.ToTensor(),
+                                            transforms.Resize((512,512)),
+                                            #transforms.CenterCrop(size=384),
+                                            #customRandomHorizontalFlip(SEED=idx,p=0.5), 
+                                            customRandomRotate(degrees=180,SEED=idx),
+                                            customRandomResizedCrop(SEED=idx,size=(256,256)),
+                                             ])
+        
+        image_path = self.train_path_list[idx]
+
+        slice = dcm.read_file(image_path)
+        image = slice.pixel_array.astype(np.float32)
+        min_val = np.min(image)
+        max_val = np.max(image)
+        image = (image - min_val) / (max_val - min_val)
+        #image = apply_voi_lut(image, slice)
+        image = Image.fromarray(image)
+
+        label_path = self.label_path_list[idx]
+        label = np.array(Image.open(label_path).convert("L"))
+        label = Image.fromarray(label)
+
+
+        input_image = self.transform(image)
+        target_image = self.transform(label)
+
+
+        thresh = np.zeros_like(target_image)
+        thresh[target_image > 0.5] = 1
+
+        return input_image, thresh
+
+
+
 class breast_Dataset(Dataset):
     def __init__(self,path, train=True):
         self.path = path
@@ -87,7 +150,7 @@ class tumor_Dataset(Dataset):
         self.train_path = path + "/input"
         #self.label_path = path + "/breast"
 
-        self.target_path = path + "/tumor"
+        self.target_path = path + "/breast"
         
         for file in os.listdir(self.train_path):
             self.train_path_list.append(os.path.join(self.train_path,file))
@@ -112,7 +175,7 @@ class tumor_Dataset(Dataset):
         self.transform = transforms.Compose([transforms.ToTensor(),
                                             transforms.Resize((512,512)),
                                             customRandomRotate(degrees=180,SEED=idx),
-                                            #customRandomResizedCrop(SEED=idx,size=(256,256))
+                                            customRandomResizedCrop(SEED=idx,size=(128,128))
                                              ])
         normalized = transforms.Normalize(mean=mean,std=std)
         

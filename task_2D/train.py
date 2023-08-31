@@ -8,12 +8,13 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 import torchio as tio
 from custom_transforms import *
-from dataset import breast_Dataset,tumor_Dataset
+from dataset import breast_Dataset,tumor_Dataset,lung_Dataset
 from Model.AAUNET.AAU_Net import AAU_Net
 from Model.TRANSUNET.transunet import TransUNet
 from loss import *
 from metric import *
 from monai.networks.nets import SwinUNETR
+from Model.MKA.MKA_UNet import mka_UNet
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -28,14 +29,14 @@ def set_seed(seed):
 def train_net(net,                       
               device,     
               epochs=100,
-              batch_size=16,
+              batch_size=32,
               lr=0.001,
               save_cp=True
               ):
-    dir_checkpoint = '/workspace/IITP/task_2D/dir_checkpoint'
-    dataset_path = "/workspace/breast_mri/2d_train/only_tumor"
+    dir_checkpoint = '/workspace/IITP/task_2D/dir_checkpoint_covid'
+    dataset_path = "/workspace/Covid_Image/covid_train"
 
-    dataset = tumor_Dataset(dataset_path)
+    dataset = lung_Dataset(dataset_path)
     train_ratio = 0.95
     train_length = int(train_ratio * len(dataset))
     test_length = len(dataset) - train_length
@@ -57,7 +58,7 @@ def train_net(net,
         Device:          {device}
     ''')    
 
-    optimizer = optim.AdamW(net.parameters(),betas=(0.9,0.999),lr=lr,weight_decay=5e-4) # weight_decay : prevent overfitting
+    optimizer = optim.AdamW(net.parameters(),betas=(0.9,0.999),lr=lr,weight_decay=1e-4) # weight_decay : prevent overfitting
     scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,T_0=10,T_mult=1,eta_min=0.00001,last_epoch=-1)
     #scheduler = optim.lr_scheduler.MultiStepLR(optimizer,milestones=[70],gamma=0.1)
     l1 = DiceLoss()
@@ -144,7 +145,7 @@ def train_net(net,
                     logging.info("Created checkpoint directory")
                 except OSError:
                     pass
-                torch.save(net.state_dict(), dir_checkpoint + f'/AAU_Net_tumor.pth')
+                torch.save(net.state_dict(), dir_checkpoint + f'/MKA_UNet.pth')
                 
                 logging.info(f'Checkpoint {epoch + 1} saved !')
 
@@ -156,15 +157,15 @@ if __name__ == '__main__':
     set_seed(Model_SEED)
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-    device = torch.device(f'cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device(f'cuda:4' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
 
 
-    net = SwinUNETR(img_size=(512,512),spatial_dims=2,in_channels=1,out_channels=1,depths=(2,2,2,2))
+    net = mka_UNet(out_channels=1)
 
 
-    if torch.cuda.device_count() > 1:
-        net = nn.DataParallel(net,device_ids=[0,1,2,3]) 
+    # if torch.cuda.device_count() > 1:
+    #     net = nn.DataParallel(net,device_ids=[4]) 
     net.to(device=device)
 
     train_net(net=net,device=device)
