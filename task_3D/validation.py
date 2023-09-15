@@ -12,12 +12,12 @@ from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.transforms import AsDiscrete, Activations
 
-def validation(val_dataset,net,device):
+def validation(val_loader,net,device):
 
     net.eval()
     post_label = AsDiscrete(threshold=0.5) #threshold
     post_pred = AsDiscrete(threshold=0.5)
-    val_loader =  ThreadDataLoader(val_dataset, num_workers=0, batch_size=BATCH_SIZE,collate_fn=pad_list_data_collate)
+    
     diceCoeff = DiceMetric(include_background=True,reduction="mean")
     
     post_sigmoid = Activations(sigmoid=True)
@@ -43,4 +43,3 @@ def validation(val_dataset,net,device):
     print("dice score : {:.4f}".format(mean_dice_val))
 
     return mean_dice_val
-
