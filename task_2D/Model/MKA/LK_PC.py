@@ -10,23 +10,23 @@ class LKA(nn.Module):
         if out:
             self.seq = nn.Sequential(
                                 nn.Conv2d(in_channels,in_channels,3,padding=1),
-                                nn.GroupNorm(4,in_channels),
+                                nn.BatchNorm2d(in_channels),
                                 nn.PReLU(),
                                 nn.Conv2d(in_channels, in_channels, 5, padding=2),
-                                nn.GroupNorm(4,in_channels),
+                                nn.BatchNorm2d(in_channels),
                                 nn.PReLU(),
                                 nn.Conv2d(in_channels, out_channels, 7, stride=1, padding=9, dilation=3),
             )
         else:
             self.seq = nn.Sequential(
                                  nn.Conv2d(in_channels,out_channels,3,padding=1),
-                                 nn.GroupNorm(4,out_channels),
+                                 nn.BatchNorm2d(out_channels),
                                  nn.PReLU(),
                                  nn.Conv2d(out_channels, out_channels, 5, padding=2),
-                                 nn.GroupNorm(4,out_channels),
+                                 nn.BatchNorm2d(out_channels),
                                  nn.PReLU(),
                                  nn.Conv2d(out_channels, out_channels, 7, stride=1, padding=9, dilation=3),
-                                 nn.GroupNorm(4,out_channels),
+                                 nn.BatchNorm2d(out_channels),
                                  nn.PReLU()
             )
 
@@ -99,7 +99,6 @@ class CA(nn.Module):
         split_1, split_2 = torch.split(combined, split_size_or_sections=combined.shape[2]//2, dim=2) 
         split_1 = self.sigmoid(self.conv_1(split_1.permute(0,1,3,2))) # batch, 32, 256, 1 -> batch, 32 , 1, 256
         split_2 = self.sigmoid(self.conv_2(split_2)) # batch, 32, 256, 1
-        print(split_1.shape, split_2.shape)
 
         result = u * split_1 * split_2
         return result
@@ -133,7 +132,6 @@ class LKA_enc(nn.Module):
     def forward(self,x):
         if not self.first:
             x = self.pool2d(x)
-
         x = self.lka_block(x)
 
         return x
@@ -219,8 +217,8 @@ class LK_PC_UNet(nn.Module):
         return out
 
 
-sample = torch.randn((4,8,512,512))
+sample = torch.randn((4,1,512,512))
 
-model = PCCA(8)
+model = LK_PC_UNet(1,1)
 
 print(model(sample).shape)

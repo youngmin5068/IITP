@@ -14,7 +14,7 @@ from Model.TRANSUNET.transunet import TransUNet
 from loss import *
 from metric import *
 from monai.networks.nets import SwinUNETR
-from Model.MKA.MKA_UNet import mka_UNet
+from Model.MKA.LK_PC import LK_PC_UNet
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -28,8 +28,8 @@ def set_seed(seed):
 
 def train_net(net,                       
               device,     
-              epochs=100,
-              batch_size=32,
+              epochs=200,
+              batch_size=16,
               lr=0.001,
               save_cp=True
               ):
@@ -37,7 +37,7 @@ def train_net(net,
     dataset_path = "/workspace/Covid_Image/covid_train"
 
     dataset = lung_Dataset(dataset_path)
-    train_ratio = 0.95
+    train_ratio = 0.9
     train_length = int(train_ratio * len(dataset))
     test_length = len(dataset) - train_length
 
@@ -145,7 +145,7 @@ def train_net(net,
                     logging.info("Created checkpoint directory")
                 except OSError:
                     pass
-                torch.save(net.state_dict(), dir_checkpoint + f'/MKA_UNet.pth')
+                torch.save(net.state_dict(), dir_checkpoint + f'/LK_PC_UNet.pth')
                 
                 logging.info(f'Checkpoint {epoch + 1} saved !')
 
@@ -157,15 +157,15 @@ if __name__ == '__main__':
     set_seed(Model_SEED)
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-    device = torch.device(f'cuda:4' if torch.cuda.is_available() else 'cpu')
+    device = torch.device(f'cuda:2' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
 
 
-    net = mka_UNet(out_channels=1)
+    net = LK_PC_UNet(1,1)
 
 
-    # if torch.cuda.device_count() > 1:
-    #     net = nn.DataParallel(net,device_ids=[4]) 
+    if torch.cuda.device_count() > 1:
+        net = nn.DataParallel(net,device_ids=[2,3,4,5]) 
     net.to(device=device)
 
     train_net(net=net,device=device)

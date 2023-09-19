@@ -151,7 +151,7 @@ class LKA(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, dim,ratio=16):
+    def __init__(self, dim,ratio=1):
         super().__init__()
 
         self.proj_1 = nn.Conv2d(dim, dim//ratio, 1)
@@ -170,25 +170,34 @@ class Attention(nn.Module):
 
 
 class LKA_Block(nn.Module):
-    def __init__(self, dim, mlp_ratio=4., drop=0.,drop_path=0., act_layer=nn.GELU):
+    def __init__(self, in_channel,out_channel, mlp_ratio=4., drop=0.,drop_path=0., act_layer=nn.GELU):
         super().__init__()
-        self.norm1 = nn.BatchNorm2d(dim)
-        self.attn = Attention(dim)
+        self.double_conv = nn.Sequential(
+            nn.Conv2d(in_channel, out_channel, 3, padding=1),
+            nn.BatchNorm2d(out_channel),
+            nn.PReLU(),
+            nn.Conv2d(out_channel,out_channel,3,padding=1),
+            nn.BatchNorm2d(out_channel),
+            nn.PReLU()               
+            )
+
+        self.attn = Attention(out_channel)
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 
-        self.norm2 = nn.BatchNorm2d(dim)
-        mlp_hidden_dim = int(dim * mlp_ratio)
-        self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
+        self.norm2 = nn.BatchNorm2d(out_channel)
+        mlp_hidden_dim = int(out_channel * mlp_ratio)
+        self.mlp = Mlp(in_features=out_channel, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
         layer_scale_init_value = 1e-2            
         self.layer_scale_1 = nn.Parameter(
-            layer_scale_init_value * torch.ones((dim)), requires_grad=True)
+            layer_scale_init_value * torch.ones((out_channel)), requires_grad=True)
         self.layer_scale_2 = nn.Parameter(
-            layer_scale_init_value * torch.ones((dim)), requires_grad=True)
+            layer_scale_init_value * torch.ones((out_channel)), requires_grad=True)
 
 
 
     def forward(self, x):
-        x = x + self.drop_path(self.layer_scale_1.unsqueeze(-1).unsqueeze(-1) * self.attn((x)))
+        x = self.double_conv(x)
+        x = x + self.drop_path(self.layer_scale_1.unsqueeze(-1).unsqueeze(-1) * self.attn(x))
         x = x + self.drop_path(self.layer_scale_2.unsqueeze(-1).unsqueeze(-1) * self.mlp(self.norm2(x)))
         return x
 
@@ -251,8 +260,6 @@ class AAU_spatial(nn.Module):
         self.conv3 = nn.Conv2d(dim//ratio,1,kernel_size=1)
         self.sigmoid = nn.Sigmoid()
 
-       
-        
         
         self.resample = nn.Conv2d(1,dim//ratio,kernel_size=1)
         self.conv4 = nn.Conv2d(dim//ratio,dim,kernel_size=1)
@@ -325,7 +332,7 @@ class PCA(nn.Module):
     
 
 class CA(nn.Module):
-    def __init__(self,dim,ratio=16):
+    def __init__(self,dim,ratio=1):
         super(CA, self).__init__()
         self.avgpool_x = nn.AdaptiveAvgPool2d((1, None))  # X 축에 대한 pooling
         self.avgpool_y = nn.AdaptiveAvgPool2d((None, 1))  # Y 축에 대한 pooling
@@ -378,18 +385,28 @@ class MKA(nn.Module):
         self.lka = LKA(dim)
         self.haam = HAAM(dim)
 
-        self.conv = nn.Conv2d(dim, dim//4, 1)
-        self.gn = nn.GroupNorm(4,num_channels=dim)
+        self.conv = nn.Conv2d(dim, dim, 1)
+        self.bn = nn.BatchNorm2d(dim)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self,x):
+        u = x.clone()
         cbam_x = self.conv(self.cbam(x))
         pcca_x = self.conv(self.pcca(x))
         lka_x = self.conv(self.lka(x))
         haam_x = self.conv(self.haam(x))
 
-        concat_x = torch.cat([cbam_x, pcca_x, lka_x,haam_x],dim=1)
+        sum_x = cbam_x+pcca_x+lka_x+haam_x
 
-        output = self.sigmoid(self.gn(concat_x))
+        #concat_x = torch.cat([cbam_x, pcca_x, lka_x,haam_x],dim=1)
 
-        return output
+        output = self.sigmoid(self.bn(sum_x))
+
+        return output * u
+    
+
+sample = torch.randn(1,1,256,256)
+
+model = LKA_Block(1,32)
+
+print(model(sample).shape)
