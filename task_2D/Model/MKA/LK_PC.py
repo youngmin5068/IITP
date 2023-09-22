@@ -9,9 +9,9 @@ class LKA(nn.Module):
 
         if out:
             self.seq = nn.Sequential(
-                                nn.Conv2d(in_channels,in_channels,3,padding=1),
-                                nn.BatchNorm2d(in_channels),
-                                nn.PReLU(),
+                                # nn.Conv2d(in_channels,in_channels,3,padding=1),
+                                # nn.BatchNorm2d(in_channels),
+                                # nn.PReLU(),
                                 nn.Conv2d(in_channels, in_channels, 5, padding=2),
                                 nn.BatchNorm2d(in_channels),
                                 nn.PReLU(),
@@ -19,10 +19,10 @@ class LKA(nn.Module):
             )
         else:
             self.seq = nn.Sequential(
-                                 nn.Conv2d(in_channels,out_channels,3,padding=1),
-                                 nn.BatchNorm2d(out_channels),
-                                 nn.PReLU(),
-                                 nn.Conv2d(out_channels, out_channels, 5, padding=2),
+                                #  nn.Conv2d(in_channels,out_channels,3,padding=1),
+                                #  nn.BatchNorm2d(out_channels),
+                                #  nn.PReLU(),
+                                 nn.Conv2d(in_channels, out_channels, 5, padding=2),
                                  nn.BatchNorm2d(out_channels),
                                  nn.PReLU(),
                                  nn.Conv2d(out_channels, out_channels, 7, stride=1, padding=9, dilation=3),
