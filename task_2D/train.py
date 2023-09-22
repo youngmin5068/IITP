@@ -15,6 +15,7 @@ from loss import *
 from metric import *
 from monai.networks.nets import SwinUNETR
 from Model.MKA.LK_PC import LK_PC_UNet
+from gmic_UNet import GMIC_UNet
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -28,15 +29,15 @@ def set_seed(seed):
 
 def train_net(net,                       
               device,     
-              epochs=200,
-              batch_size=16,
+              epochs=100,
+              batch_size=32,
               lr=0.001,
               save_cp=True
               ):
-    dir_checkpoint = '/workspace/IITP/task_2D/dir_checkpoint_covid'
-    dataset_path = "/workspace/Covid_Image/covid_train"
+    dir_checkpoint = '/workspace/IITP/task_2D/dir_checkpoint_breast_ROI'
+    dataset_path = "/mount_folder"
 
-    dataset = lung_Dataset(dataset_path)
+    dataset = tumor_Dataset(dataset_path,"/input_dcm","/breast_mask")
     train_ratio = 0.9
     train_length = int(train_ratio * len(dataset))
     test_length = len(dataset) - train_length
@@ -59,10 +60,11 @@ def train_net(net,
     ''')    
 
     optimizer = optim.AdamW(net.parameters(),betas=(0.9,0.999),lr=lr,weight_decay=1e-4) # weight_decay : prevent overfitting
-    scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,T_0=10,T_mult=1,eta_min=0.00001,last_epoch=-1)
-    #scheduler = optim.lr_scheduler.MultiStepLR(optimizer,milestones=[70],gamma=0.1)
-    l1 = DiceLoss()
-    l2 = nn.BCEWithLogitsLoss()
+    #scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,T_0=10,T_mult=1,eta_min=0.00001,last_epoch=-1)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer,milestones=[25],gamma=0.1)
+    diceloss = DiceLoss()
+    bceloss = nn.BCEWithLogitsLoss()
+    classifyloss = nn.BCELoss()
 
     best_dice = 0.0
     best_epoch = 0
@@ -74,21 +76,22 @@ def train_net(net,
 
         net.train()
         i=1
-        for imgs,true_masks in train_loader:
+        for imgs,true_masks,true_class in train_loader:
 
             imgs = imgs.to(device=device,dtype=torch.float32)
             true_masks = true_masks.to(device=device,dtype=torch.float32)
-
+            true_class = true_class.to(device=device,dtype=torch.float32).unsqueeze(1)
             #optimizer.zero_grad()
             for param in net.parameters():
                 param.grad = None
 
-            masks_preds = net(imgs)
+            masks_preds,cl_preds,saliency_map = net(imgs)
 
-            loss1 = l1(torch.sigmoid(masks_preds),true_masks)
-            loss2 = l2(masks_preds,true_masks)
+            loss1 = diceloss(torch.sigmoid(masks_preds),true_masks)
+            loss2 = bceloss(masks_preds,true_masks)
+            loss3 = classifyloss(saliency_map,true_masks)
 
-            loss = loss1+loss2
+            loss = loss1+loss2+loss3
             loss.backward()
 
             nn.utils.clip_grad_value_(net.parameters(), 0.1)     
@@ -96,13 +99,14 @@ def train_net(net,
             optimizer.step()
 
             
-            if i*batch_size%1600 == 0:
-                print('epoch : {}, index : {}/{},dice loss : {:.4f},bce loss : {:.4f}, loss (batch) : {:.4f}'.format(
+            if i*batch_size%800 == 0:
+                print('epoch : {}, index : {}/{},dice loss : {:.4f}, bce loss : {:.4f}, saliency loss : {:.4f}, loss (batch) : {:.4f}'.format(
                                                                                                                         epoch+1, 
                                                                                                                         i*batch_size,
                                                                                                                         len(train_dataset),
                                                                                                                         loss1.detach(),
                                                                                                                         loss2.detach(),
+                                                                                                                        loss3.detach(),
                                                                                                                         loss.detach())) 
             i += 1
 
@@ -113,11 +117,11 @@ def train_net(net,
         recall = 0.0
         precision = 0.0
 
-        for imgs, true_masks in val_loader:
+        for imgs, true_masks,_ in val_loader:
             imgs = imgs.to(device=device,dtype=torch.float32)
             true_masks = true_masks.to(device=device,dtype=torch.float32)
             with torch.no_grad():
-                mask_pred = net(imgs)
+                mask_pred,_,_ = net(imgs)
                 mask_pred = torch.sigmoid(mask_pred)
 
             thresh = torch.zeros_like(mask_pred)
@@ -130,8 +134,7 @@ def train_net(net,
 
         print("dice score : {:.4f}, len(val_loader) : {:.4f}".format(dice, len(val_loader)))
         print("dice score : {:.4f}, recall score : {:.4f}, precision score : {:.4f}".format(dice/len(val_loader), recall/len(val_loader),precision/len(val_loader)) )
-        scheduler.step()
-        net.train()
+        #scheduler.step()
         
         if dice/len(val_loader) > best_dice:
             best_dice = dice/len(val_loader)
@@ -145,7 +148,7 @@ def train_net(net,
                     logging.info("Created checkpoint directory")
                 except OSError:
                     pass
-                torch.save(net.state_dict(), dir_checkpoint + f'/LK_PC_UNet.pth')
+                torch.save(net.state_dict(), dir_checkpoint + f'/GMIC_SWINUNETR.pth')
                 
                 logging.info(f'Checkpoint {epoch + 1} saved !')
 
@@ -157,16 +160,20 @@ if __name__ == '__main__':
     set_seed(Model_SEED)
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-    device = torch.device(f'cuda:2' if torch.cuda.is_available() else 'cpu')
+    device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
+    
+    parameters = {
+            "percent_t":0.1,
+            "device_type":"gpu",
+            "gpu_number":2,
+            "post_processing_dim": 256,
+            "num_classes": 1
+        }
 
-
-    net = LK_PC_UNet(1,1)
-
-
+    net = GMIC_UNet(parameters).to(device=device)
     if torch.cuda.device_count() > 1:
-        net = nn.DataParallel(net,device_ids=[2,3,4,5]) 
-    net.to(device=device)
+        net = nn.DataParallel(net,device_ids=[0,1]) 
 
     train_net(net=net,device=device)
 
