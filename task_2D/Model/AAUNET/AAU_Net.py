@@ -9,13 +9,13 @@ class AAU_channel(nn.Module):
         super(AAU_channel,self).__init__()
 
         self.conv3x3 = nn.Conv2d(in_channels=in_channel,out_channels=out_channel,kernel_size=3,padding=1)
-        self.bn1 = nn.BatchNorm2d(out_channel)
+        self.bn1 = nn.GroupNorm(out_channel,out_channel)
 
         self.conv5x5 = nn.Conv2d(in_channels=in_channel,out_channels=out_channel,kernel_size=5,padding=2)
-        self.bn2 = nn.BatchNorm2d(out_channel)
+        self.bn2 = nn.GroupNorm(out_channel,out_channel)
 
         self.dil_conv3x3 = nn.Conv2d(in_channels=in_channel,out_channels=out_channel,kernel_size=3,dilation=3,padding=3)
-        self.bn3 = nn.BatchNorm2d(out_channel)
+        self.bn3 = nn.GroupNorm(out_channel,out_channel)
 
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.fc1 = nn.Linear(in_features=2*out_channel,out_features=out_channel)
@@ -55,16 +55,16 @@ class AAU_spatial(nn.Module):
         super(AAU_spatial,self).__init__()
 
         self.conv1 = nn.Conv2d(in_channel, out_channel,kernel_size=1)
-        self.bn1 = nn.BatchNorm2d(out_channel)
+        self.bn1 = nn.GroupNorm(out_channel,out_channel)
 
         self.conv2 = nn.Conv2d(in_channel,out_channel,kernel_size=1)
-        self.bn2 = nn.BatchNorm2d(out_channel)
+        self.bn2 = nn.GroupNorm(out_channel,out_channel)
 
         self.conv3 = nn.Conv2d(out_channel,1,kernel_size=1)
         self.sigmoid = nn.Sigmoid()
 
         self.conv4 = nn.Conv2d(out_channel,out_channel,kernel_size=1)
-        self.bn3 = nn.BatchNorm2d(out_channel)
+        self.bn3 = nn.GroupNorm(out_channel,out_channel)
         
         self.resample = nn.Conv2d(1,out_channel,kernel_size=1)
 
@@ -116,7 +116,7 @@ class Double_HAAM(nn.Module):
         super(Double_HAAM,self).__init__()
         self.haam = HAAM(in_channel,out_channel)
         self.haam2 = HAAM(out_channel,out_channel)
-        self.bn = nn.BatchNorm2d(out_channel)
+        self.bn = nn.GroupNorm(out_channel,out_channel)
         self.leaky_relu = nn.LeakyReLU(inplace=True)
 
     def forward(self,x):
@@ -124,6 +124,7 @@ class Double_HAAM(nn.Module):
         x = self.haam2(x)
         x = self.bn(x)
         x = self.leaky_relu(x)
+
         return x
     
 class Up(nn.Module):
