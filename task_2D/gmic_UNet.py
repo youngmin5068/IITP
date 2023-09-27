@@ -11,7 +11,7 @@ class GMIC_UNet(nn.Module):
     def __init__(self, parameters):
         super(GMIC_UNet, self).__init__()
 
-        self.swin_unetr = SwinUNETR(img_size=(512,512),spatial_dims=2,in_channels=1,out_channels=1,depths=(2,4,2,2))
+        self.swin_unetr = SwinUNETR(img_size=(512,512),spatial_dims=2,in_channels=1,out_channels=1,depths=(2,2,2,2))
 
         # save parameters
         self.experiment_parameters = parameters
@@ -19,16 +19,16 @@ class GMIC_UNet(nn.Module):
         self.global_network = m.GlobalNetwork(self.experiment_parameters)
         self.aggregation_function = m.TopTPercentAggregationFunction(self.experiment_parameters)
     def forward(self,x_original):
-
+        res_x = x_original.clone()
         swin_output = self.swin_unetr(x_original)
         h_g, self.saliency_map = self.global_network(x_original)
         saliency_resized = F.interpolate(self.saliency_map, size=(512,512),mode="bilinear",align_corners=True)
         
         self.y_global = self.aggregation_function(self.saliency_map)
         
-        att_result = swin_output * saliency_resized
-
-        return att_result, self.y_global, saliency_resized
+        #att_res_x = res_x * saliency_resized
+    
+        return swin_output, self.y_global, saliency_resized
     
 # sample = torch.randn((1,1,512,512))
 
