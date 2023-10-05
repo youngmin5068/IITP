@@ -18,17 +18,18 @@ class GMIC_UNet(nn.Module):
 
         self.global_network = m.GlobalNetwork(self.experiment_parameters)
         self.aggregation_function = m.TopTPercentAggregationFunction(self.experiment_parameters)
+
     def forward(self,x_original):
-        res_x = x_original.clone()
+
         swin_output = self.swin_unetr(x_original)
         h_g, self.saliency_map = self.global_network(x_original)
         saliency_resized = F.interpolate(self.saliency_map, size=(512,512),mode="bilinear",align_corners=True)
         
         self.y_global = self.aggregation_function(self.saliency_map)
         
-        #att_res_x = res_x * saliency_resized
+        att_res_x = swin_output * saliency_resized
     
-        return swin_output, self.y_global, saliency_resized
+        return att_res_x, self.y_global
     
 # sample = torch.randn((1,1,512,512))
 
