@@ -83,7 +83,7 @@ class SpatialGate(nn.Module):
 
 
 class Topt_CBAM(nn.Module):
-    def __init__(self, gate_channels, reduction_ratio=16, percent_t=0.7, pool_types=['avg', 'max'], no_spatial=False):
+    def __init__(self, gate_channels, percent_t, reduction_ratio=16, pool_types=['avg', 'max'], no_spatial=False):
         super(Topt_CBAM, self).__init__()
         self.ChannelGate = TopTPercentChannelGate(gate_channels, reduction_ratio, percent_t=percent_t, pool_types=['avg', 'max'])
         self.no_spatial=no_spatial
@@ -174,7 +174,7 @@ class OutConv(nn.Module):
     
 
 class top_t_cbam_UNet(nn.Module):
-    def __init__(self, n_channels, n_classes,percent_t=0.5, bilinear=False):
+    def __init__(self, n_channels, n_classes,percent_t, bilinear=False):
         super(top_t_cbam_UNet, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
