@@ -159,7 +159,7 @@ def train_net(net,
                     logging.info("Created checkpoint directory")
                 except OSError:
                     pass
-                torch.save(net.state_dict(), dir_checkpoint + f'/top_t_01_cbam_10_05.pth')
+                torch.save(net.state_dict(), dir_checkpoint + f'/top_t_05_cbam_10_05.pth')
                 
                 logging.info(f'Checkpoint {epoch + 1} saved !')
 
@@ -188,10 +188,8 @@ def train_net(net,
         precision += precision_score(thresh,true_masks)
         recall += recall_score(thresh,true_masks)
         dice += dice_score(thresh,true_masks)
-        
-
-    print("dice score : {:.4f}, len(val_loader) : {:.4f}".format(dice, len(val_loader)))
-    print("dice score : {:.4f}, recall score : {:.4f}, precision score : {:.4f}".format(dice/len(val_loader), recall/len(val_loader),precision/len(val_loader)) )
+    print("dice score : {:.4f}, len(testloader) : {:.4f}".format(dice, len(test_loader)))
+    print("dice score : {:.4f}, recall score : {:.4f}, precision score : {:.4f}".format(dice/len(test_loader), recall/len(test_loader),precision/len(test_loader)) )
         
 
 if __name__ == '__main__':
@@ -199,7 +197,7 @@ if __name__ == '__main__':
     set_seed(Model_SEED)
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-    device = torch.device(f'cuda:4' if torch.cuda.is_available() else 'cpu')
+    device = torch.device(f'cuda:0' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
     
     # parameters = {
@@ -217,9 +215,9 @@ if __name__ == '__main__':
     if torch.cuda.device_count() > 1:
         net = nn.DataParallel(net,device_ids=[0,1,2]) 
 
-    model_path = '/workspace/IITP/task_2D/dir_checkpoint_breast_ROI/top_t_cbam_UNet2.pth'
+    model_path = '/workspace/IITP/task_2D/dir_checkpoint_breast_ROI/top_t_cbam_UNet.pth'
 
-    roi_model = top_t_cbam_UNet(1,1,percent_t=0.1).to(device="cuda:4")
+    roi_model = top_t_cbam_UNet(1,1,percent_t=0.7).to(device="cuda:0")
     if torch.cuda.device_count() > 1:
         roi_model = nn.DataParallel(roi_model,device_ids=[0,1,2]) 
 
