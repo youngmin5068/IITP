@@ -24,7 +24,7 @@ class Flatten(nn.Module):
         return input.view(input.size(0), -1)
 
 class TopTPercentChannelGate(nn.Module):
-    def __init__(self, gate_channels, reduction_ratio=16, percent_t=0.7, pool_types=['avg', 'max']):
+    def __init__(self, gate_channels, percent_t, reduction_ratio=16, pool_types=['avg', 'max']):
         super(TopTPercentChannelGate, self).__init__()
         self.gate_channels = gate_channels
         self.percent_t = percent_t
@@ -61,6 +61,7 @@ class TopTPercentChannelGate(nn.Module):
                 channel_att_sum = channel_att_sum + channel_att_raw
                 
         scale = torch.sigmoid(channel_att_sum).unsqueeze(2).unsqueeze(3).expand_as(x)
+
         return x * scale
     
 
@@ -85,7 +86,9 @@ class SpatialGate(nn.Module):
 class Topt_CBAM(nn.Module):
     def __init__(self, gate_channels, percent_t, reduction_ratio=16, pool_types=['avg', 'max'], no_spatial=False):
         super(Topt_CBAM, self).__init__()
-        self.ChannelGate = TopTPercentChannelGate(gate_channels, reduction_ratio, percent_t=percent_t, pool_types=['avg', 'max'])
+        self.percent_t = percent_t
+        self.reduction_ratio = reduction_ratio
+        self.ChannelGate = TopTPercentChannelGate(gate_channels, percent_t=self.percent_t,reduction_ratio=self.reduction_ratio, pool_types=['avg', 'max'])
         self.no_spatial=no_spatial
         if not no_spatial:
             self.SpatialGate = SpatialGate()
@@ -94,13 +97,6 @@ class Topt_CBAM(nn.Module):
         if not self.no_spatial:
             x_out = self.SpatialGate(x_out)
         return x_out
-
-
-
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 
 class DoubleConv(nn.Module):
@@ -179,18 +175,19 @@ class top_t_cbam_UNet(nn.Module):
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
+        self.percent_t = percent_t
 
         self.inc = (DoubleConv(n_channels, 64))
-        self.tCbam0 = Topt_CBAM(64,percent_t=percent_t)
+        self.tCbam0 = Topt_CBAM(64,percent_t=self.percent_t)
 
         self.down1 = (Down(64, 128))
-        self.tCbam1 = Topt_CBAM(128,percent_t=percent_t)
+        self.tCbam1 = Topt_CBAM(128,percent_t=self.percent_t)
 
         self.down2 = (Down(128, 256))
-        self.tCbam2 = Topt_CBAM(256,percent_t=percent_t)
+        self.tCbam2 = Topt_CBAM(256,percent_t=self.percent_t)
 
         self.down3 = (Down(256, 512))
-        self.tCbam3 = Topt_CBAM(512,percent_t=percent_t)
+        self.tCbam3 = Topt_CBAM(512,percent_t=self.percent_t)
 
         factor = 2 if bilinear else 1
         self.down4 = (Down(512, 1024 // factor))
