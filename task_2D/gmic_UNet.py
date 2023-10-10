@@ -27,9 +27,9 @@ class GMIC_UNet(nn.Module):
         
         self.y_global = self.aggregation_function(self.saliency_map)
         
-        att_res_x = swin_output * saliency_resized
+        #att_res_x = swin_output * saliency_resized
     
-        return att_res_x, self.y_global
+        return swin_output, self.y_global
     
 # sample = torch.randn((1,1,512,512))
 
