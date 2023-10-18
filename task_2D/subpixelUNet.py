@@ -67,8 +67,8 @@ class SubPixelNetwork(nn.Module):
     def __init__(self):
         super(SubPixelNetwork,self).__init__()
         self.double_conv = SubPixel_DoubleConv(1,8) # output shape: 16x512x512
-        self.d2s = Depth2Space(4,8,8) # output shape: 4x1024x1024 -> 8x1024x1024
-        self.s2d = Space2Depth(32,64,64) # output shape: 32x512x512 -> 64x512x512
+        self.d2s = Depth2Space(4,8,4) # output shape: 4x1024x1024 -> 4x1024x1024
+        self.s2d = Space2Depth(16,32,32) # output shape: 32x512x512 -> 32x512x512
 
     def forward(self,x):
         x = self.double_conv(x)
@@ -166,15 +166,15 @@ class SubPixelUNet(nn.Module):
         self.up1 = (Up(1024, 512 // factor, bilinear))
         self.up2 = (Up(512, 256 // factor, bilinear))
         self.up3 = (Up(256, 128 // factor, bilinear))
-        self.up4 = (Up(128, 64, bilinear))
-        self.double_conv = DoubleConv(128, 64)
-        self.up5 = Depth2Space(16, 8, 8)
+        self.up4 = (Up(128, 32, bilinear))
+        self.double_conv = DoubleConv(64, 32)
+        self.up5 = Depth2Space(8, 4, 4)
 
-        self.d2s = Space2Depth(64, n_classes, n_classes)
+        self.d2s = Space2Depth(32, n_classes, n_classes)
         self.outc = (OutConv(64, n_classes))
 
     def forward(self, x):
-        sub_x1,sub_x2 = self.subpixelModule(x) #8x1024x1024 , 64x512x512
+        sub_x1,sub_x2 = self.subpixelModule(x) #4x1024x1024 , 32x512x512
         x1 = self.inc(x)
         x2 = self.down1(x1)
         x3 = self.down2(x2)
@@ -186,9 +186,9 @@ class SubPixelUNet(nn.Module):
         x = self.up3(x, x2)
         x = self.up4(x, x1)
         x = torch.cat([x,sub_x2],dim=1) # 128x512x512
-        x = self.double_conv(x) # 64x512x512
-        x = self.up5(x) #8x1024x1024
-        x = torch.cat([x,sub_x1],dim=1) #16x1024x1024
+        x = self.double_conv(x) # 32x512x512
+        x = self.up5(x) #4x1024x1024
+        x = torch.cat([x,sub_x1],dim=1) #8x1024x1024
 
         logits = self.d2s(x)
         return logits
@@ -198,6 +198,6 @@ class SubPixelUNet(nn.Module):
 if __name__ == "__main__":
 
     sample = torch.randn(1,1,512,512)
-    model = UNet(n_channels=1,n_classes=1)
+    model = SubPixelUNet(n_channels=1,n_classes=1)
     output = model(sample)
     print(output.shape)
