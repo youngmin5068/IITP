@@ -4,7 +4,7 @@ from timm.models.layers import DropPath
 import torch
 
 class DWConv(nn.Module):
-    def __init__(self, dim=768):
+    def __init__(self, dim=384):
         super(DWConv, self).__init__()
         self.dwconv = nn.Conv2d(dim, dim, 3, 1, 1, bias=True, groups=dim)
 
@@ -12,7 +12,7 @@ class DWConv(nn.Module):
         x = self.dwconv(x)
         return x
 
-class Mlp(nn.Module):
+class LK_Mlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
         super().__init__()
         out_features = out_features or in_features
@@ -52,7 +52,7 @@ class LKA(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, dim,ratio=1):
+    def __init__(self, dim,ratio=12):
         super().__init__()
 
         self.proj_1 = nn.Conv2d(dim, dim//ratio, 1)
@@ -68,6 +68,31 @@ class Attention(nn.Module):
         x = self.proj_2(x)
         x = x + shorcut
         return x
+    
+
+class LKA_Block(nn.Module):
+    def __init__(self, in_channel, mlp_ratio=4., drop=0.,drop_path=0., act_layer=nn.GELU):
+        super().__init__()
+
+        self.attn = Attention(in_channel)
+        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+
+        self.norm2 = nn.InstanceNorm2d(in_channel)
+        mlp_hidden_dim = int(in_channel * mlp_ratio)
+        self.mlp = LK_Mlp(in_features=in_channel, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
+        layer_scale_init_value = 1e-2            
+        self.layer_scale_1 = nn.Parameter(
+            layer_scale_init_value * torch.ones((in_channel)), requires_grad=True)
+        self.layer_scale_2 = nn.Parameter(
+            layer_scale_init_value * torch.ones((in_channel)), requires_grad=True)
+
+
+
+    def forward(self, x):
+        x = x + self.drop_path(self.layer_scale_1.unsqueeze(-1).unsqueeze(-1) * self.attn(x))
+        x = x + self.drop_path(self.layer_scale_2.unsqueeze(-1).unsqueeze(-1) * self.mlp(self.norm2(x)))
+        return x
+    
     
 import itertools
 from collections.abc import Sequence
@@ -99,7 +124,7 @@ __all__ = [
     "SwinTransformer",
 ]
 
-class SwinUNETR(nn.Module):
+class LKA_SwinUNETR(nn.Module):
     """
     Swin UNETR based on: "Hatamizadeh et al.,
     Swin UNETR: Swin Transformers for Semantic Segmentation of Brain Tumors in MRI Images
@@ -303,11 +328,11 @@ class SwinUNETR(nn.Module):
             res_block=True,
         )
 
-        self.lka_hidden = Attention(192,ratio=12)
-        self.lka0 = Attention(24,ratio=12)
-        self.lka1 = Attention(24,ratio=12)
-        self.lka2 = Attention(48,ratio=12)
-        self.lka3 = Attention(96,ratio=12)
+        self.lka_hidden = LKA_Block(192)
+        self.lka0 = LKA_Block(24)
+        self.lka1 = LKA_Block(24)
+        self.lka2 = LKA_Block(48)
+        self.lka3 = LKA_Block(96)
 
         self.out = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
 
@@ -1120,9 +1145,3 @@ class SwinTransformer(nn.Module):
         x4 = self.layers4[0](x3.contiguous())
         x4_out = self.proj_out(x4, normalize)
         return [x0_out, x1_out, x2_out, x3_out, x4_out]
-
-sample = torch.randn((1,1,512,512))
-model = SwinUNETR(img_size=(512,512),in_channels=1,out_channels=1,spatial_dims=2)
-
-output = model(sample)
-print(output.shape)
